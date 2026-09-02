@@ -1,37 +1,54 @@
 const express = require('express');
 const cors = require('cors');
+const { Pool } = require('pg');
 
 const app = express();
+app.use(cors());
+app.use(express.json());
 
-app.use(cors()); 
-app.use(express.json()); 
+// 🔌 Conexão com o Banco de Dados Supabase
+const pool = new Pool({
+  connectionString: 'postgresql://postgres:Projetogrupo12@db.xlfafzjdiodpryfwdzqb.supabase.co:5432/postgres' 
+});
 
-// 1. Listar filmes (com suporte a filtro nacional)
-app.get('/api/filmes', (req, res) => {
+// 1. Listar filmes (com suporte a filtro nacional para a Jornada da Giovana)
+app.get('/api/filmes', async (req, res) => {
+  try {
     const isNacional = req.query.nacional === 'true';
-    
-    // Dados simulados para testar o funcionamento antes do Banco de Dados
-    res.json([
-        { id: 1, titulo: 'O Auto da Compadecida 2', nacional: true, avaliacao: 4.8 },
-        { id: 2, titulo: 'Deadpool & Wolverine', nacional: false, avaliacao: 4.5 }
-    ]);
+    let query = 'SELECT * FROM Filmes';
+    if (isNacional) {
+      query += ' WHERE nacional = true';
+    }
+    const result = await pool.query(query);
+    res.json(result.rows);
+  } catch (error) {
+    res.status(500).json({ erro: 'Erro ao buscar filmes' });
+  }
 });
 
 // 2. Detalhes de um filme específico
-app.get('/api/filmes/:id', (req, res) => {
+app.get('/api/filmes/:id', async (req, res) => {
+  try {
     const filmeId = req.params.id;
-    res.json({ id: filmeId, titulo: 'O Auto da Compadecida 2', sinopse: 'O retorno de João Grilo e Chicó.' });
+    const result = await pool.query('SELECT * FROM Filmes WHERE id = $1', [filmeId]);
+    res.json(result.rows[0]);
+  } catch (error) {
+    res.status(500).json({ erro: 'Erro ao buscar filme' });
+  }
 });
 
 // 3. Buscar sessões disponíveis para o filme selecionado
-app.get('/api/sessoes', (req, res) => {
+app.get('/api/sessoes', async (req, res) => {
+  try {
     const filmeId = req.query.filmeId;
-    res.json([
-        { id: 1, cinema: 'Cinema Central', horario: '2026-09-05 19:00', preco: 35.00 }
-    ]);
+    const result = await pool.query('SELECT * FROM Sessoes WHERE filme_id = $1', [filmeId]);
+    res.json(result.rows);
+  } catch (error) {
+    res.status(500).json({ erro: 'Erro ao buscar sessões' });
+  }
 });
 
-const PORT = 3000;
-app.listen(PORT, () => {
-    console.log(`Servidor Backend rodando na porta ${PORT}`);
+app.listen(3000, () => {
+  console.log('🚀 Servidor rodando na porta 3000');
+  console.log('🔌 Conectado ao banco de dados Supabase!');
 });
